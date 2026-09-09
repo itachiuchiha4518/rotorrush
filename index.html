@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Chalkline — script-to-video for Shorts</title>
+<style>
+  @font-face {
+    font-family: 'Caveat';
+    src: local('Caveat');
+  }
+  :root{
+    --slate: #1e2b26;
+    --slate-2: #253a32;
+    --slate-3: #2c453b;
+    --chalk: #eef3ee;
+    --chalk-dim: #b9c7bf;
+    --chalk-faint: #6f8078;
+    --accent: #f2c14e;
+    --accent-2: #e8895c;
+    --green: #7fb88a;
+    --red: #d4736a;
+    --line: rgba(238,243,238,0.14);
+    --line-strong: rgba(238,243,238,0.28);
+    --radius: 10px;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0;
+    background: var(--slate);
+    color: var(--chalk);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body{
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(255,255,255,0.02), transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(255,255,255,0.02), transparent 40%);
+  }
+  .wrap{ max-width: 640px; margin: 0 auto; padding: 20px 16px 80px; }
+
+  header.top{ padding: 8px 0 20px; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+  header.top h1{
+    font-family: 'Caveat', cursive;
+    font-size: 40px;
+    font-weight: 700;
+    margin: 0 0 2px;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+  header.top p{ margin: 0; color: var(--chalk-dim); font-size: 14px; }
+
+  .step{ margin-bottom: 28px; }
+  .step-head{ display:flex; align-items:baseline; gap: 10px; margin-bottom: 10px; }
+  .step-num{
+    font-family: 'Caveat', cursive; font-size: 26px; color: var(--accent-2);
+    width: 28px; flex-shrink:0;
+  }
+  .step-title{ font-size: 16px; font-weight: 600; color: var(--chalk); }
+  .step-sub{ font-size: 13px; color: var(--chalk-faint); margin: 2px 0 0 38px; line-height: 1.5; }
+
+  .card{
+    background: var(--slate-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-left: 0;
+  }
+
+  input[type="file"]{ display:none; }
+  .drop{
+    border: 1.5px dashed var(--line-strong);
+    border-radius: var(--radius);
+    padding: 20px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .drop:active{ border-color: var(--accent); }
+  .drop .dtitle{ font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .drop .dsub{ font-size: 12px; color: var(--chalk-faint); }
+  .drop.has-file{ border-style: solid; border-color: var(--green); }
+
+  audio{ width: 100%; margin-top: 12px; height: 32px; }
+
+  .scene-list{ display: flex; flex-direction: column; gap: 12px; }
+  .scene{
+    background: var(--slate-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px;
+    position: relative;
+  }
+  .scene-top{ display:flex; justify-content: space-between; align-items:center; margin-bottom: 8px; }
+  .scene-label{ font-family: 'Caveat', cursive; font-size: 20px; color: var(--accent); }
+  .scene-del{
+    background: none; border: none; color: var(--chalk-faint);
+    font-size: 18px; cursor: pointer; padding: 4px 8px; line-height:1;
+  }
+  .scene-del:active{ color: var(--red); }
+
+  .timerow{ display:flex; gap: 8px; margin-bottom: 8px; }
+  .timefield{ flex:1; }
+  .timefield label{ display:block; font-size: 11px; color: var(--chalk-faint); margin-bottom: 3px; }
+  .timefield input{
+    width: 100%;
+    background: var(--slate);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--chalk);
+    padding: 8px 10px;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .timefield input:focus{ outline: none; border-color: var(--accent); }
+
+  textarea.scene-desc{
+    width: 100%;
+    background: var(--slate);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--chalk);
+    padding: 10px;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 52px;
+    font-family: inherit;
+  }
+  textarea.scene-desc:focus{ outline: none; border-color: var(--accent); }
+  .field-err{ color: var(--red); font-size: 12px; margin-top: 4px; display:none; }
+
+  .add-scene-btn{
+    width: 100%;
+    background: transparent;
+    border: 1.5px dashed var(--line-strong);
+    border-radius: var(--radius);
+    color: var(--chalk-dim);
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 12px;
+  }
+  .add-scene-btn:active{ border-color: var(--accent); color: var(--accent); }
+
+  select{
+    width: 100%;
+    background: var(--slate);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--chalk);
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  .btn{
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--radius);
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+  }
+  .btn-primary{ background: var(--accent); color: #2c2410; }
+  .btn-primary:disabled{ background: var(--slate-3); color: var(--chalk-faint); }
+  .btn-secondary{ background: var(--slate-3); color: var(--chalk); border: 1px solid var(--line-strong); }
+
+  .status{
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--chalk-dim);
+    text-align: center;
+    min-height: 18px;
+  }
+  .progress-outer{
+    width: 100%; height: 8px; border-radius: 4px;
+    background: var(--slate-3); overflow: hidden; margin-top: 10px; display:none;
+  }
+  .progress-inner{
+    height: 100%; width: 0%; background: var(--accent);
+    transition: width .3s ease;
+  }
+
+  .preview-wrap{ display:none; margin-top: 16px; text-align:center; }
+  .preview-wrap video{
+    width: 100%; max-width: 300px; border-radius: var(--radius);
+    border: 1px solid var(--line-strong); background: #000;
+  }
+  .dl-link{
+    display:block; margin-top: 12px; background: var(--green); color: #0d2610;
+    text-decoration:none; padding: 14px; border-radius: var(--radius);
+    font-weight: 700; font-size: 15px;
+  }
+
+  .hint-box{
+    background: var(--slate-3); border-left: 3px solid var(--accent-2);
+    border-radius: 6px; padding: 10px 12px; font-size: 12.5px;
+    color: var(--chalk-dim); line-height: 1.5; margin-bottom: 16px;
+  }
+  .footer-note{ text-align:center; font-size: 12px; color: var(--chalk-faint); margin-top: 28px; line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>Chalkline</h1>
+    <p>Script + voiceover in. Finished chalkboard-style Short out.</p>
+  </header>
+
+  <div class="hint-box" id="introHint">
+    Upload your voiceover, add a scene for each part of the script with its
+    start/end time and what should be drawn, then render. Everything runs on
+    your phone — nothing uploads anywhere except free AI image requests.
+  </div>
+
+  <div class="step">
+    <div class="step-head">
+      <span class="step-num">1</span>
+      <span class="step-title">Your voiceover</span>
+    </div>
+    <p class="step-sub">MP3 or WAV. This sets the total video length.</p>
+    <div class="card">
+      <input type="file" id="audioInput" accept="audio/*">
+      <div class="drop" id="audioDrop">
+        <div class="dtitle" id="audioDropTitle">Tap to upload audio</div>
+        <div class="dsub" id="audioDropSub">mp3 or wav file</div>
+      </div>
+      <audio id="audioPreview" controls style="display:none;"></audio>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head">
+      <span class="step-num">2</span>
+      <span class="step-title">Scenes</span>
+    </div>
+    <p class="step-sub">One scene per beat of your script. Times in seconds, matching your voiceover.</p>
+    <div class="scene-list" id="sceneList"></div>
+    <button class="add-scene-btn" id="addSceneBtn" type="button">+ add scene</button>
+  </div>
+
+  <div class="step">
+    <div class="step-head">
+      <span class="step-num">3</span>
+      <span class="step-title">Look</span>
+    </div>
+    <p class="step-sub">Applied to every scene so the video looks consistent.</p>
+    <div class="card">
+      <select id="styleSelect">
+        <option value="chalkboard">Chalkboard sketch — white chalk lines on dark slate</option>
+        <option value="whiteboard">Whiteboard marker — bold black marker on white</option>
+        <option value="notebook">Notebook doodle — pen sketch on lined paper</option>
+        <option value="flat">Flat illustration — simple flat color, no outlines</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head">
+      <span class="step-num">4</span>
+      <span class="step-title">Image key (optional)</span>
+    </div>
+    <p class="step-sub">
+      Free, no card — <a href="https://enter.pollinations.ai/keys" target="_blank" style="color:#f2c14e;">get one at enter.pollinations.ai/keys</a>.
+      Works without one, but a key is more reliable and won't get rate-limited mid-render.
+    </p>
+    <div class="card">
+      <input type="text" id="apiKeyInput" placeholder="pk_... (leave blank to try without)"
+        style="width:100%; background: var(--slate); border: 1px solid var(--line); border-radius: 6px; color: var(--chalk); padding: 10px; font-size: 14px;">
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head">
+      <span class="step-num">5</span>
+      <span class="step-title">Render</span>
+    </div>
+    <p class="step-sub">Generates each image, then assembles the video on your device. Takes a few minutes — keep this tab open.</p>
+    <div class="card">
+      <button class="btn btn-primary" id="renderBtn" type="button">Generate video</button>
+      <div class="progress-outer" id="progressOuter"><div class="progress-inner" id="progressInner"></div></div>
+      <div class="status" id="statusText"></div>
+      <div class="preview-wrap" id="previewWrap">
+        <video id="previewVideo" controls playsinline></video>
+        <a class="dl-link" id="downloadLink" download="short.mp4">Download video</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Images generated with Pollinations.ai (free, no signup). Video assembly<br>runs locally in your browser with ffmpeg.wasm. Nothing is uploaded.
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-face-observer/2.3.0/fontfaceobserver.standalone.js"></script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
